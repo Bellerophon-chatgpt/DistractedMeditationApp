@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distracted Meditation</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <div class="container">
+        <h1>Distracted Meditation</h1>
+        <p class="subtitle">The meditation app that's as unfocused as you are.</p>
+
+        <div id="controls">
+            <input type="number" id="duration" value="3" min="1">
+            <button id="startBtn">Start Meditating</button>
+        </div>
+
+        <div class="session-view" id="sessionView" style="display: none;">
+            <p id="timer">03:00</p>
+            <p id="narrator">Let's begin. Breathe in... breathe out...</p>
+        </div>
+    </div>
+
+    <script>
+        const startBtn = document.getElementById('startBtn');
+        const controls = document.getElementById('controls');
+        const sessionView = document.getElementById('sessionView');
+        const timerDisplay = document.getElementById('timer');
+        const narrator = document.getElementById('narrator');
+        const durationInput = document.getElementById('duration');
+
+        let timerInterval;
+        let distractionCount = 0;
+
+        // Fetch a new distraction from our Python backend
+        async function fetchDistraction() {
+            try {
+                // This URL must match where your Flask app is running
+                const response = await fetch('http://127.0.0.1:5000/get-distraction');
+                const data = await response.json();
+                
+                narrator.classList.add('distracted');
+                narrator.textContent = `...wait. ${data.thought}`;
+                distractionCount++;
+
+                // Go back to breathing after a pause
+                setTimeout(() => {
+                    narrator.classList.remove('distracted');
+                    narrator.textContent = "Anyway... where were we? Oh, right. Breathing...";
+                }, 4000);
+
+            } catch (error) {
+                console.error("Failed to fetch distraction:", error);
+                narrator.textContent = "My mind is blank... almost too quiet.";
+            }
+        }
+
+        function startTimer(duration) {
+            let totalSeconds = duration * 60;
+            
+            timerInterval = setInterval(() => {
+                const minutes = Math.floor(totalSeconds / 60);
+                let seconds = totalSeconds % 60;
+                seconds = seconds < 10 ? '0' + seconds : seconds;
+                
+                timerDisplay.textContent = `${minutes}:${seconds}`;
+
+                // Random chance to get distracted
+                if (Math.random() < 0.15) { // 15% chance every second
+                    fetchDistraction();
+                }
+
+                if (totalSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    narrator.textContent = `Session complete! We got distracted ${distractionCount} times. Not bad!`;
+                    controls.style.display = 'block'; // Show start button again
+                }
+                
+                totalSeconds--;
+            }, 1000);
+        }
+
+        startBtn.addEventListener('click', () => {
+            const minutes = parseInt(durationInput.value, 10);
+            if (isNaN(minutes) || minutes < 1) {
+                alert("Please enter a valid number of minutes.");
+                return;
+            }
+            
+            // Reset and start
+            clearInterval(timerInterval);
+            distractionCount = 0;
+            controls.style.display = 'none';
+            sessionView.style.display = 'block';
+            narrator.textContent = "Let's begin. Breathe in... breathe out...";
+            startTimer(minutes);
+        });
+    </script>
+</body>
+</html>
